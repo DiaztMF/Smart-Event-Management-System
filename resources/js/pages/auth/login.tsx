@@ -1,117 +1,105 @@
-import { Form, Head } from '@inertiajs/react';
-import InputError from '@/components/input-error';
-import PasswordInput from '@/components/password-input';
-import TextLink from '@/components/text-link';
+import { Head } from '@inertiajs/react';
+import { router } from '@inertiajs/react';
+import { useState } from 'react';
 import { Button } from '@/components/ui/button';
-import { Checkbox } from '@/components/ui/checkbox';
 import { Input } from '@/components/ui/input';
 import { Label } from '@/components/ui/label';
-import { Spinner } from '@/components/ui/spinner';
-import { register } from '@/routes';
-import { store } from '@/routes/login';
-import { request } from '@/routes/password';
-import PasskeyVerify from '@/components/passkey-verify';
+import { Card, CardContent, CardDescription, CardFooter, CardHeader, CardTitle } from '@/components/ui/card';
+import { apiJson } from '@/lib/api';
+import { toast } from 'sonner';
 
 type Props = {
     status?: string;
-    canResetPassword: boolean;
 };
 
-export default function Login({ status, canResetPassword }: Props) {
+export default function Login({ status }: Props) {
+    const [error, setError] = useState<string | null>(null);
+    const [processing, setProcessing] = useState(false);
+
+    const handleSubmit = async (e: React.FormEvent) => {
+        e.preventDefault();
+        setError(null);
+        setProcessing(true);
+
+        const formData = new FormData(e.currentTarget as HTMLFormElement);
+        const email = formData.get('email') as string;
+        const password = formData.get('password') as string;
+
+        try {
+            await apiJson('/login', {
+                method: 'POST',
+                body: JSON.stringify({ email, password }),
+            });
+            router.visit('/dashboard');
+        } catch (err: unknown) {
+            const errorObj = err as Error & { status?: number; message?: string };
+            setError(
+                errorObj.status === 401
+                    ? 'Email atau password salah'
+                    : errorObj?.message ?? 'Login gagal',
+            );
+            toast.error(errorObj?.message ?? 'Login gagal');
+        } finally {
+            setProcessing(false);
+        }
+    };
+
     return (
         <>
-            <Head title="Log in" />
-
-            <PasskeyVerify />
-
-            <Form
-                {...store.form()}
-                resetOnSuccess={['password']}
-                className="flex flex-col gap-6"
-            >
-                {({ processing, errors }) => (
-                    <>
-                        <div className="grid gap-6">
-                            <div className="grid gap-2">
-                                <Label htmlFor="email">Email address</Label>
+            <Head title="Login" />
+            <div className="flex min-h-screen items-center justify-center bg-neutral-50 px-4">
+                <Card className="w-full max-w-md shadow-xl">
+                    <CardHeader className="text-center">
+                        <CardTitle className="text-xl">Masuk ke Akun</CardTitle>
+                        <CardDescription>
+                            Silakan login untuk mengakses sistem manajemen event.
+                        </CardDescription>
+                    </CardHeader>
+                    <CardContent className="space-y-4">
+                        {status && (
+                            <div className="text-center text-sm text-green-600">{status}</div>
+                        )}
+                        {error && (
+                            <div className="text-center text-sm text-destructive">{error}</div>
+                        )}
+                        <form onSubmit={handleSubmit} className="space-y-4">
+                            <div className="space-y-2">
+                                <Label htmlFor="email">Email</Label>
                                 <Input
                                     id="email"
                                     type="email"
                                     name="email"
                                     required
-                                    autoFocus
-                                    tabIndex={1}
+                                    placeholder="nama@contoh.com"
                                     autoComplete="email"
-                                    placeholder="email@example.com"
                                 />
-                                <InputError message={errors.email} />
                             </div>
-
-                            <div className="grid gap-2">
-                                <div className="flex items-center">
-                                    <Label htmlFor="password">Password</Label>
-                                    {canResetPassword && (
-                                        <TextLink
-                                            href={request()}
-                                            className="ml-auto text-sm"
-                                            tabIndex={5}
-                                        >
-                                            Forgot your password?
-                                        </TextLink>
-                                    )}
-                                </div>
-                                <PasswordInput
+                            <div className="space-y-2">
+                                <Label htmlFor="password">Kata Sandi</Label>
+                                <Input
                                     id="password"
+                                    type="password"
                                     name="password"
                                     required
-                                    tabIndex={2}
                                     autoComplete="current-password"
-                                    placeholder="Password"
                                 />
-                                <InputError message={errors.password} />
                             </div>
-
-                            <div className="flex items-center space-x-3">
-                                <Checkbox
-                                    id="remember"
-                                    name="remember"
-                                    tabIndex={3}
-                                />
-                                <Label htmlFor="remember">Remember me</Label>
-                            </div>
-
-                            <Button
-                                type="submit"
-                                className="mt-4 w-full"
-                                tabIndex={4}
-                                disabled={processing}
-                                data-test="login-button"
-                            >
-                                {processing && <Spinner />}
-                                Log in
+                            <Button type="submit" disabled={processing} className="w-full">
+                                {processing ? 'Memproses...' : 'Masuk'}
                             </Button>
-                        </div>
-
-                        <div className="text-center text-sm text-muted-foreground">
-                            Don't have an account?{' '}
-                            <TextLink href={register()} tabIndex={5}>
-                                Sign up
-                            </TextLink>
-                        </div>
-                    </>
-                )}
-            </Form>
-
-            {status && (
-                <div className="mb-4 text-center text-sm font-medium text-green-600">
-                    {status}
-                </div>
-            )}
+                        </form>
+                    </CardContent>
+                    <CardFooter className="flex items-center justify-center text-center gap-1">
+                        <span className="text-sm text-neutral-500">
+                            Selamat datang kembali
+                        </span>
+                    </CardFooter>
+                </Card>
+            </div>
         </>
     );
 }
 
 Login.layout = {
-    title: 'Log in to your account',
-    description: 'Enter your email and password below to log in',
+    title: 'Login',
 };
